@@ -233,6 +233,37 @@ public class DaemonBridge {
     }
 
     /**
+     * Send an abort command to cancel the currently executing request.
+     * The abort bypasses the daemon's command queue and is processed immediately.
+     * Also completes all pending request futures so Java-side blocking calls unblock.
+     */
+    public void sendAbort() {
+        // Send abort command to daemon so it stops the active SDK query
+        try {
+            if (daemonStdin != null && isRunning.get()) {
+                JsonObject abort = new JsonObject();
+                abort.addProperty("id", "abort-" + System.currentTimeMillis());
+                abort.addProperty("method", "abort");
+                synchronized (daemonStdin) {
+                    daemonStdin.write(abort.toString());
+                    daemonStdin.newLine();
+                    daemonStdin.flush();
+                }
+                LOG.info("[DaemonBridge] Sent abort command");
+            }
+        } catch (IOException e) {
+            LOG.debug("[DaemonBridge] Error sending abort command: " + e.getMessage());
+        }
+
+        // Complete all pending request futures so Java-side callers unblock
+        for (Map.Entry<String, RequestHandler> entry : pendingRequests.entrySet()) {
+            entry.getValue().onError("Request aborted by user");
+            entry.getValue().future.complete(false);
+        }
+        pendingRequests.clear();
+    }
+
+    /**
      * Check if the daemon is running and healthy.
      */
     public boolean isAlive() {

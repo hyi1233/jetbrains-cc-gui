@@ -22,6 +22,9 @@ const anonymousRuntimesBySignature = new Map();
 
 let cachedQueryFn = null;
 
+// Tracks the runtime currently executing a turn (for abort support)
+let activeTurnRuntime = null;
+
 const ACCEPT_EDITS_AUTO_APPROVE_TOOLS = new Set([
   'Write',
   'Edit',
@@ -652,6 +655,8 @@ async function executeTurn(runtime, requestContext, turnMeta) {
     throw err;
   }
 
+  activeTurnRuntime = runtime;
+
   const turnState = {
     streamingEnabled: requestContext.streamingEnabled,
     streamStarted: false,
@@ -724,6 +729,11 @@ async function executeTurn(runtime, requestContext, turnMeta) {
     turnState.streamEnded = true;
   }
 
+  // Only clear if this runtime still owns the pointer (not cleared by abort)
+  if (activeTurnRuntime === runtime) {
+    activeTurnRuntime = null;
+  }
+
   const finalSessionId = turnState.finalSessionId || runtime.sessionId || requestContext.requestedSessionId || '';
   if (finalSessionId) {
     registerRuntimeSession(runtime, finalSessionId);
@@ -769,12 +779,17 @@ async function sendInternal(params, withAttachments) {
     runtime = await acquireRuntime(requestContext);
     await executeTurn(runtime, requestContext, turnMeta);
   } catch (error) {
+    // Only clear if this runtime still owns the pointer (not cleared by abort)
+    if (activeTurnRuntime === runtime) {
+      activeTurnRuntime = null;
+    }
     if (turnMeta.state?.streamingEnabled && turnMeta.state?.streamStarted && !turnMeta.state?.streamEnded) {
       console.log('[STREAM_END]');
       turnMeta.state.streamEnded = true;
     }
     emitSendError(runtime, error, requestContext);
-    if (runtime && error?.runtimeTerminated) {
+    // Only dispose if not already disposed by abort
+    if (runtime && !runtime.closed && error?.runtimeTerminated) {
       await disposeRuntime(runtime);
     }
   }
@@ -792,6 +807,24 @@ export async function preconnectPersistent(params = {}) {
   const safeParams = params || {};
   const requestContext = await buildRequestContext(safeParams, false);
   await acquireRuntime(requestContext);
+}
+
+export async function abortCurrentTurn() {
+  // Atomic swap: clear first to prevent double-disposal from rapid abort calls.
+  // JS is single-threaded so assignment is atomic — only the first caller gets
+  // a non-null runtime, subsequent callers see null and exit early.
+  const runtime = activeTurnRuntime;
+  if (!runtime) return;
+  activeTurnRuntime = null;
+
+  try {
+    if (!runtime.closed) {
+      await disposeRuntime(runtime);
+    }
+  } catch (error) {
+    // Best-effort — log but don't throw so abort always "succeeds"
+    console.error('[ABORT] Failed to dispose runtime:', error.message);
+  }
 }
 
 export async function shutdownPersistentRuntimes() {

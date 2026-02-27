@@ -32,7 +32,8 @@ import {
   sendMessagePersistent,
   sendMessageWithAttachmentsPersistent,
   preconnectPersistent,
-  shutdownPersistentRuntimes
+  shutdownPersistentRuntimes,
+  abortCurrentTurn
 } from './services/claude/persistent-query-service.js';
 
 // =============================================================================
@@ -436,6 +437,28 @@ async function processRequest(request) {
     // Heartbeats and status queries don't use activeRequestId — safe to run immediately
     if (request.method === 'heartbeat' || request.method === 'status') {
       processRequest(request);
+      return;
+    }
+
+    // Abort bypasses the command queue — must run immediately to cancel active work
+    if (request.method === 'abort') {
+      const targetId = activeRequestId;
+      _originalStderrWrite(
+        `[daemon] Abort requested, active request: ${targetId || 'none'}\n`,
+        'utf8'
+      );
+      if (targetId) {
+        // Fire-and-forget: disposeRuntime will cause the queued processRequest
+        // to throw and emit its own done signal. We don't need to await here
+        // because the Java side already completes its futures in sendAbort().
+        abortCurrentTurn().catch((e) => {
+          _originalStderrWrite(
+            `[daemon] Abort error: ${e.message}\n`,
+            'utf8'
+          );
+        });
+      }
+      writeRawLine({ id: request.id || '0', done: true, success: true });
       return;
     }
 

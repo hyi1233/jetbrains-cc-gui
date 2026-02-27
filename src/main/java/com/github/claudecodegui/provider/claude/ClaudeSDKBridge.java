@@ -194,6 +194,25 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
         super.cleanupAllProcesses();
     }
 
+    /**
+     * Interrupt a channel. In daemon mode, sends an abort command to cancel the
+     * active request. Also delegates to ProcessManager for per-process fallback.
+     */
+    @Override
+    public void interruptChannel(String channelId) {
+        DaemonBridge db = daemonBridge;
+        if (db != null && db.isAlive()) {
+            LOG.info("[ClaudeSDKBridge] Sending daemon abort for channel: " + channelId);
+            try {
+                db.sendAbort();
+            } catch (Exception e) {
+                LOG.error("[ClaudeSDKBridge] Daemon abort failed: " + e.getMessage());
+            }
+        }
+        // Also try per-process interrupt (covers per-process fallback mode)
+        super.interruptChannel(channelId);
+    }
+
     // ============================================================================
     // Abstract method implementations
     // ============================================================================
