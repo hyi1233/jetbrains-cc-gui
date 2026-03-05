@@ -268,7 +268,7 @@ const BehaviorTab = ({
 
         {soundNotificationEnabled && (
           <div className={styles.customSoundSection}>
-            <div style={{ marginBottom: 16 }}>
+            <div className={styles.soundOnlyWhenUnfocusedSection}>
               <div className={styles.fieldHeader}>
                 <span className="codicon codicon-eye-closed" />
                 <span className={styles.fieldLabel}>{t('settings.basic.soundNotification.onlyWhenUnfocused')}</span>
