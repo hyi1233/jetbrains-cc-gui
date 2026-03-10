@@ -358,7 +358,7 @@ public class ClaudeSession {
     /**
      * Send a message with attachments, agent prompt, file tags, and a requested permission mode.
      * The effective mode is resolved with priority:
-     * requestedPermissionMode > sessionMode > default, with codex forced to bypassPermissions.
+     * Priority: requestedPermissionMode > sessionMode > default.
      */
     public CompletableFuture<Void> send(
             String input,
@@ -1012,15 +1012,19 @@ public class ClaudeSession {
     }
 
     private String resolveEffectivePermissionMode(String provider, String requestedMode, String sessionMode) {
-        // Codex execution is always bypassPermissions to match provider constraints.
-        if ("codex".equals(provider)) {
-            return "bypassPermissions";
+        String resolvedMode = requestedMode;
+        if (resolvedMode == null) {
+            resolvedMode = normalizeRequestedPermissionMode(sessionMode);
         }
-        if (requestedMode != null) {
-            return requestedMode;
+        if (resolvedMode == null) {
+            resolvedMode = "default";
         }
-        String normalizedSession = normalizeRequestedPermissionMode(sessionMode);
-        return normalizedSession != null ? normalizedSession : "default";
+
+        // Codex does not support plan execution yet; always fall back to default mode.
+        if ("codex".equals(provider) && "plan".equals(resolvedMode)) {
+            return "default";
+        }
+        return resolvedMode;
     }
 
     /**
@@ -1358,14 +1362,14 @@ public class ClaudeSession {
 
         // Sync PermissionManager mode with frontend mode:
         // - "default" -> DEFAULT (ask every time)
-        // - "acceptEdits" -> ACCEPT_EDITS (agent mode, auto-accept file edits)
+        // - "acceptEdits"/"autoEdit" -> ACCEPT_EDITS (agent mode, auto-accept file edits)
         // - "bypassPermissions" -> ALLOW_ALL (auto mode, bypass all permission checks)
         // - "plan" -> DENY_ALL (plan mode, not yet supported)
         PermissionManager.PermissionMode pmMode;
         if ("bypassPermissions".equals(mode)) {
             pmMode = PermissionManager.PermissionMode.ALLOW_ALL;
             LOG.info("Permission mode set to ALLOW_ALL for mode: " + mode);
-        } else if ("acceptEdits".equals(mode)) {
+        } else if ("acceptEdits".equals(mode) || "autoEdit".equals(mode)) {
             pmMode = PermissionManager.PermissionMode.ACCEPT_EDITS;
             LOG.info("Permission mode set to ACCEPT_EDITS for mode: " + mode);
         } else if ("plan".equals(mode)) {

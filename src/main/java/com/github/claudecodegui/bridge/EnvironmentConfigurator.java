@@ -161,11 +161,11 @@ public class EnvironmentConfigurator {
         }
         String permissionDir = getPermissionDirectory();
         if (permissionDir != null) {
-            env.putIfAbsent(CLAUDE_PERMISSION_ENV, permissionDir);
+            env.put(CLAUDE_PERMISSION_ENV, permissionDir);
         }
         String sid = getSessionId();
         if (sid != null) {
-            env.putIfAbsent(CLAUDE_SESSION_ID_ENV, sid);
+            env.put(CLAUDE_SESSION_ID_ENV, sid);
         }
     }
 
@@ -183,6 +183,21 @@ public class EnvironmentConfigurator {
             }
         }
         return this.sessionId;
+    }
+
+    /**
+     * Explicitly sets the session ID to align permission request routing
+     * across multiple bridge instances.
+     */
+    public void setSessionId(String sessionId) {
+        if (sessionId == null) {
+            return;
+        }
+        String normalized = sessionId.trim();
+        if (normalized.isEmpty()) {
+            return;
+        }
+        this.sessionId = normalized;
     }
 
     /**

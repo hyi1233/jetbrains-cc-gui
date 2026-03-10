@@ -67,6 +67,8 @@ public class SettingsHandler extends BaseMessageHandler {
         "get_editor_font_config",
         "get_streaming_enabled",
         "set_streaming_enabled",
+        "get_codex_sandbox_mode",
+        "set_codex_sandbox_mode",
         "get_send_shortcut",
         "set_send_shortcut",
         "get_auto_open_file_enabled",
@@ -78,7 +80,7 @@ public class SettingsHandler extends BaseMessageHandler {
         "record_input_history",
         "delete_input_history_item",
         "clear_input_history",
-        // 提示音配置
+        // Sound notification configuration
         "get_sound_notification_config",
         "set_sound_notification_enabled",
         "set_sound_only_when_unfocused",
@@ -179,6 +181,12 @@ public class SettingsHandler extends BaseMessageHandler {
             case "set_streaming_enabled":
                 handleSetStreamingEnabled(content);
                 return true;
+            case "get_codex_sandbox_mode":
+                handleGetCodexSandboxMode();
+                return true;
+            case "set_codex_sandbox_mode":
+                handleSetCodexSandboxMode(content);
+                return true;
             case "get_send_shortcut":
                 handleGetSendShortcut();
                 return true;
@@ -212,7 +220,7 @@ public class SettingsHandler extends BaseMessageHandler {
             case "clear_input_history":
                 handleClearInputHistory();
                 return true;
-            // 提示音配置
+            // Sound notification configuration
             case "get_sound_notification_config":
                 handleGetSoundNotificationConfig();
                 return true;
@@ -1048,6 +1056,60 @@ public class SettingsHandler extends BaseMessageHandler {
     }
 
     /**
+     * Get Codex sandbox mode configuration.
+     */
+    private void handleGetCodexSandboxMode() {
+        try {
+            String projectPath = context.getProject().getBasePath();
+            String sandboxMode = settingsService.getCodexSandboxMode(projectPath);
+
+            ApplicationManager.getApplication().invokeLater(() -> {
+                JsonObject response = new JsonObject();
+                response.addProperty("sandboxMode", sandboxMode);
+                callJavaScript("window.updateCodexSandboxMode", escapeJs(gson.toJson(response)));
+            });
+        } catch (Exception e) {
+            LOG.error("[SettingsHandler] Failed to get Codex sandbox mode: " + e.getMessage(), e);
+            ApplicationManager.getApplication().invokeLater(() -> {
+                JsonObject response = new JsonObject();
+                response.addProperty("sandboxMode", "workspace-write");
+                callJavaScript("window.updateCodexSandboxMode", escapeJs(gson.toJson(response)));
+            });
+        }
+    }
+
+    /**
+     * Set Codex sandbox mode configuration.
+     */
+    private void handleSetCodexSandboxMode(String content) {
+        try {
+            String projectPath = context.getProject().getBasePath();
+            JsonObject json = gson.fromJson(content, JsonObject.class);
+            String sandboxMode = "workspace-write";
+
+            if (json != null && json.has("sandboxMode") && !json.get("sandboxMode").isJsonNull()) {
+                sandboxMode = json.get("sandboxMode").getAsString();
+            }
+
+            settingsService.setCodexSandboxMode(projectPath, sandboxMode);
+            LOG.info("[SettingsHandler] Set Codex sandbox mode: " + sandboxMode);
+
+            final String finalSandboxMode = sandboxMode;
+            ApplicationManager.getApplication().invokeLater(() -> {
+                JsonObject response = new JsonObject();
+                response.addProperty("sandboxMode", finalSandboxMode);
+                callJavaScript("window.updateCodexSandboxMode", escapeJs(gson.toJson(response)));
+                callJavaScript("window.showSuccessI18n", "toast.saveSuccess");
+            });
+        } catch (Exception e) {
+            LOG.error("[SettingsHandler] Failed to set Codex sandbox mode: " + e.getMessage(), e);
+            ApplicationManager.getApplication().invokeLater(() -> {
+                callJavaScript("window.showError", escapeJs("保存 Codex 沙箱模式失败: " + e.getMessage()));
+            });
+        }
+    }
+
+    /**
      * Get auto-open file configuration.
      */
     private void handleGetAutoOpenFileEnabled() {
@@ -1605,10 +1667,10 @@ public class SettingsHandler extends BaseMessageHandler {
         return lines.length > 0 ? lines[lines.length - 1] : "{}";
     }
 
-    // ==================== 提示音配置管理 ====================
+    // ==================== Sound Notification Configuration ====================
 
     /**
-     * 获取提示音配置
+     * Gets sound notification configuration.
      */
     private void handleGetSoundNotificationConfig() {
         try {

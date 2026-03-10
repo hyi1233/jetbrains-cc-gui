@@ -250,7 +250,18 @@
     "mcp": "MCP Servers",
     "mcpDesc": "Configure and manage Model Context Protocol servers",
     "permissions": "Permissions",
-    "permissionsDesc": "Manage Claude Code's file access and operation permissions",
+    "permissionsDesc": "Manage Claude Code file access and operation permissions",
+    "codexPermissionsDesc": "Manage Codex permissions and sandbox policies",
+    "permissionsPanel": {
+      "codexSandboxTitle": "Codex Sandbox Mode",
+      "codexSandboxDesc": "Control system access boundaries when Codex executes commands. Keep workspace-write by default and only enable full access when required.",
+      "workspaceWriteTitle": "workspace-write (Recommended)",
+      "workspaceWriteDesc": "Read/write is limited to the workspace. System-level operations are restricted for safety.",
+      "fullAccessTitle": "danger-full-access",
+      "fullAccessDesc": "Allows higher system access, suitable for commands like adb or docker that require extra permissions.",
+      "hint": "This setting only affects Codex process sandboxing and does not change Claude Code permission behavior.",
+      "claudeTip": "Claude Code approval mode is configured from the chat input mode selector."
+    },
     "commit": {
       "title": "Commit AI",
       "description": "Configure AI-generated Git commit message behavior",
@@ -1270,8 +1281,8 @@
     },
     "acceptEdits": {
       "label": "Auto Edit",
-      "tooltip": "Codex approval_policy=auto-edit – automatically applies file patches, still asks before shell commands.",
-      "description": "Auto-create and edit files via apply_patch while keeping command approvals."
+      "tooltip": "Codex approval_policy=on-request – asks for approval when needed",
+      "description": "Balanced option. Allows normal editing flow while still requiring approvals when needed."
     },
     "bypassPermissions": {
       "label": "Full Auto",

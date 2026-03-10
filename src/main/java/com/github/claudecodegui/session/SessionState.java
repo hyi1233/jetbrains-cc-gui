@@ -25,6 +25,7 @@ public class SessionState {
         modes.add("default");
         modes.add("plan");
         modes.add("acceptEdits");
+        modes.add("autoEdit");
         modes.add("bypassPermissions");
         VALID_PERMISSION_MODES = Collections.unmodifiableSet(modes);
     }

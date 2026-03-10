@@ -51,6 +51,8 @@ public class SessionLifecycleManager {
 
         void clearPendingPermissionRequests();
 
+        void clearPermissionDecisionMemory();
+
         void callJavaScript(String functionName, String... args);
 
         boolean isDisposed();
@@ -106,6 +108,7 @@ public class SessionLifecycleManager {
             });
 
             host.clearPendingPermissionRequests();
+            host.clearPermissionDecisionMemory();
 
             ClaudeSession newSession = new ClaudeSession(
                     host.getProject(), host.getClaudeSDKBridge(), host.getCodexSDKBridge());
@@ -173,6 +176,7 @@ public class SessionLifecycleManager {
         host.getStreamCoalescer().resetStreamState();
         host.callJavaScript("clearMessages");
         host.clearPendingPermissionRequests();
+        host.clearPermissionDecisionMemory();
 
         CompletableFuture<Void> interruptFuture = oldSession != null
                 ? oldSession.interrupt()

@@ -13,6 +13,7 @@ import ProviderTabSection from './ProviderTabSection';
 import DependencySection from './DependencySection';
 import UsageSection from './UsageSection';
 import PlaceholderSection from './PlaceholderSection';
+import PermissionsSection from './PermissionsSection';
 import CommunitySection from './CommunitySection';
 import AgentSection from './AgentSection';
 import PromptSection from './PromptSection';
@@ -71,10 +72,9 @@ const SettingsView = ({
 }: SettingsViewProps) => {
   const { t } = useTranslation();
   const isCodexMode = currentProvider === 'codex';
-  // Codex mode: allow providers, usage, mcp, and skills tabs, disable other features
-  // Note: 'skills' is now enabled for Codex as it supports .agents/skills/ directories
+  // Codex mode: align with Claude capabilities for settings tabs
   const disabledTabs = useMemo<SettingsTab[]>(
-    () => (isCodexMode ? ['permissions', 'agents'] : []),
+    () => [],
     [isCodexMode]
   );
   const [currentTab, setCurrentTab] = useState<SettingsTab>(() => {
@@ -275,6 +275,7 @@ const SettingsView = ({
   // Streaming configuration - prefer props, fallback to local state (for backward compatibility when props are not passed)
   const [localStreamingEnabled, setLocalStreamingEnabled] = useState<boolean>(false);
   const streamingEnabled = streamingEnabledProp ?? localStreamingEnabled;
+  const [codexSandboxMode, setCodexSandboxMode] = useState<'workspace-write' | 'danger-full-access'>('workspace-write');
 
   // Send shortcut configuration - prefer props, fallback to local state
   const [localSendShortcut, setLocalSendShortcut] = useState<'enter' | 'cmdEnter'>('enter');
@@ -321,7 +322,7 @@ const SettingsView = ({
     }
   });
 
-  // 提示音配置
+  // Sound notification configuration
   const [soundNotificationEnabled, setSoundNotificationEnabled] = useState<boolean>(false);
   const [soundOnlyWhenUnfocused, setSoundOnlyWhenUnfocused] = useState<boolean>(false);
   const [selectedSound, setSelectedSound] = useState<string>('default');
@@ -360,6 +361,7 @@ const SettingsView = ({
     setEditorFontConfig,
     setIdeTheme,
     setLocalStreamingEnabled,
+    setCodexSandboxMode,
     setLocalSendShortcut,
     setLoading,
     setCodexLoading,
@@ -526,6 +528,12 @@ const SettingsView = ({
       const payload = { streamingEnabled: enabled };
       sendToJava(`set_streaming_enabled:${JSON.stringify(payload)}`);
     }
+  };
+
+  const handleCodexSandboxModeChange = (mode: 'workspace-write' | 'danger-full-access') => {
+    setCodexSandboxMode(mode);
+    const payload = { sandboxMode: mode };
+    sendToJava(`set_codex_sandbox_mode:${JSON.stringify(payload)}`);
   };
 
   // Send shortcut change handler
@@ -790,7 +798,14 @@ const SettingsView = ({
 
           {/* Permissions configuration */}
           <div style={{ display: currentTab === 'permissions' ? 'block' : 'none' }}>
-            <PlaceholderSection type="permissions" />
+            {currentProvider === 'codex' ? (
+              <PermissionsSection
+                codexSandboxMode={codexSandboxMode}
+                onCodexSandboxModeChange={handleCodexSandboxModeChange}
+              />
+            ) : (
+              <PlaceholderSection type="permissions" />
+            )}
           </div>
 
           {/* Commit AI configuration */}
