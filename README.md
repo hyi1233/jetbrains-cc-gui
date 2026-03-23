@@ -1,6 +1,6 @@
 <div align="center">
 
-# CC GUI（Claude and Codex）
+# CC GUI（Claude or Codex）
 
 > Originally Claude Code GUI
 
