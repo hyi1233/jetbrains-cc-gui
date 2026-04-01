@@ -330,6 +330,8 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
               transform: 'translateZ(0)',
             }}
           >
+            {/* Inner wrapper stretches to scrollWidth so row backgrounds fill the full width */}
+            <div style={{ display: 'inline-block', minWidth: '100%' }}>
             {diff.lines.map((line, index) => {
               const isDeleted = line.type === 'deleted';
               const isAdded = line.type === 'added';
@@ -349,18 +351,6 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
                     minWidth: '100%',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '40px',
-                      textAlign: 'right',
-                      paddingRight: '10px',
-                      color: 'var(--diff-muted-text)',
-                      userSelect: 'none',
-                      borderRight: '1px solid var(--diff-gutter-border)',
-                      background: 'var(--diff-gutter-bg)',
-                      flex: '0 0 40px',
-                    }}
-                  />
                   <div
                     style={{
                       width: '24px',
@@ -397,6 +387,7 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
         )}

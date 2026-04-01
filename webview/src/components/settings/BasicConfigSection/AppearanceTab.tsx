@@ -281,30 +281,6 @@ const AppearanceTab = ({
         </div>
       </div>
 
-      {/* Diff theme */}
-      <div className={styles.themeSection}>
-        <div className={styles.fieldHeader}>
-          <span className="codicon codicon-diff" />
-          <span className={styles.fieldLabel}>{t('settings.basic.diffTheme.label')}</span>
-        </div>
-
-        <div className={styles.themeSelector}>
-          {diffThemeOptions.map((option) => (
-            <div
-              key={option.value}
-              className={`${styles.themeOption} ${diffTheme === option.value ? styles.active : ''}`}
-              onClick={() => onDiffThemeChange(option.value)}
-            >
-              <div className={styles.diffThemePreview} data-diff-theme-preview={option.value} />
-              <div className={styles.diffThemeMeta}>
-                <span className={styles.themeOptionLabel}>{option.label}</span>
-                <span className={styles.themeCardDesc}>{option.desc}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Language switcher */}
       <div className={styles.languageSection}>
         <div className={styles.fieldHeader}>
@@ -357,6 +333,26 @@ const AppearanceTab = ({
           <span className="codicon codicon-info" />
           <span>{t('settings.basic.editorFont.hint')}</span>
         </small>
+      </div>
+
+      {/* Diff theme */}
+      <div className={styles.themeSection}>
+        <div className={styles.fieldHeader}>
+          <span className="codicon codicon-diff" />
+          <span className={styles.fieldLabel}>{t('settings.basic.diffTheme.label')}</span>
+        </div>
+
+        <select
+          className={styles.languageSelect}
+          value={diffTheme}
+          onChange={(e) => onDiffThemeChange(e.target.value as DiffThemeMode)}
+        >
+          {diffThemeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label} — {option.desc}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Chat background color */}
