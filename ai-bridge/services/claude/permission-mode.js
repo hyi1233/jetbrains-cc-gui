@@ -1,4 +1,5 @@
 import { canUseTool, requestPlanApproval, READ_ONLY_TOOLS, SAFE_ALWAYS_ALLOW_TOOLS, EDIT_TOOLS } from '../../permission-handler.js';
+import { debugLog } from '../../permission-ipc.js';
 import { isAcceptEditsAllowed } from '../../permission-safety.js';
 
 /**
@@ -55,13 +56,31 @@ const PLAN_FILE_NAME = 'PLAN.md';
 function isPlanFilePath(filePath, cwd) {
   if (!filePath || typeof filePath !== 'string') return false;
   const workingDir = cwd || process.cwd();
-  const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
-  const normalizedCwd = workingDir.replace(/\\/g, '/').toLowerCase();
-  if (normalizedPath.endsWith('/plan.md') || normalizedPath === 'plan.md') {
-    if (normalizedPath.startsWith(normalizedCwd)) return true;
-    if (!normalizedPath.includes('/')) return true;
-  }
+  // Normalize separators but preserve case for directory comparison (Linux is case-sensitive)
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  const normalizedCwd = workingDir.replace(/\\/g, '/');
+  // Only compare filename case-insensitively (PLAN.md, plan.md, Plan.md are all valid)
+  const fileName = normalizedPath.split('/').pop() || '';
+  if (fileName.toLowerCase() !== 'plan.md') return false;
+  // Check if the file is in the project root (CWD)
+  if (normalizedPath.startsWith(normalizedCwd + '/') || normalizedPath.startsWith(normalizedCwd)) return true;
+  if (!normalizedPath.includes('/')) return true; // Relative path like "PLAN.md"
   return false;
+}
+
+/**
+ * Extract all file paths from a tool's input.
+ * MultiEdit may have multiple edits targeting different files.
+ */
+function extractFilePaths(toolName, toolInput) {
+  if (!toolInput) return [];
+  if (toolName === 'MultiEdit' && Array.isArray(toolInput.edits)) {
+    return toolInput.edits
+      .map(e => e.file_path || e.path)
+      .filter(Boolean);
+  }
+  const fp = toolInput.file_path || toolInput.path;
+  return fp ? [fp] : [];
 }
 
 const INTERACTIVE_TOOLS = new Set(['AskUserQuestion']);
@@ -157,12 +176,12 @@ export function createPreToolUseHook(permissionModeState, cwd = null, onModeChan
     let currentPermissionMode = readPermissionMode();
     const toolName = input?.tool_name;
 
-    console.log('[PERMISSION_HOOK] Called for tool:', toolName, 'mode:', currentPermissionMode);
+    debugLog('PERMISSION_HOOK', `Called for tool: ${toolName}, mode: ${currentPermissionMode}`);
 
     // ======== HANDLE EnterPlanMode - update permissionModeState ========
     // When EnterPlanMode is called, we need to switch to plan mode for subsequent tools
     if (toolName === 'EnterPlanMode') {
-      console.log('[PERMISSION_HOOK] EnterPlanMode called, switching to plan mode');
+      debugLog('PERMISSION_HOOK', 'EnterPlanMode called, switching to plan mode');
       currentPermissionMode = await updatePermissionMode('plan');
       // Auto-allow EnterPlanMode (it's in SAFE_ALWAYS_ALLOW_TOOLS)
       return {
@@ -238,8 +257,11 @@ export function createPreToolUseHook(permissionModeState, cwd = null, onModeChan
       // Step 4: Edit/Write tools allow PLAN.md only; other writes require permission.
       if (toolName === 'Edit' || toolName === 'Write' || toolName === 'MultiEdit' ||
           toolName === 'NotebookEdit') {
-        const filePath = input?.tool_input?.file_path || input?.tool_input?.path;
-        if (isPlanFilePath(filePath, workingDirectory)) {
+        // MultiEdit may contain multiple file paths — check ALL of them
+        const filePaths = extractFilePaths(toolName, input?.tool_input);
+        const allArePlanFiles = filePaths.length > 0 &&
+          filePaths.every(fp => isPlanFilePath(fp, workingDirectory));
+        if (allArePlanFiles) {
           return {
             hookSpecificOutput: {
               hookEventName: 'PreToolUse',
@@ -306,7 +328,7 @@ export function createPreToolUseHook(permissionModeState, cwd = null, onModeChan
         }
       }
 
-      // Step 4: Plan mode specific allowed tools (read-only exploration tools)
+      // Step 5: Plan mode specific allowed tools (read-only exploration tools)
       if (PLAN_MODE_ALLOWED_TOOLS.has(toolName)) {
         return {
           hookSpecificOutput: {
@@ -316,7 +338,7 @@ export function createPreToolUseHook(permissionModeState, cwd = null, onModeChan
         };
       }
 
-      // Step 5: Auto-approve read-only MCP tools (mcp__* without Write/Edit in name)
+      // Step 6: Auto-approve read-only MCP tools (mcp__* without Write/Edit in name)
       if (toolName?.startsWith('mcp__') && !toolName.includes('Write') && !toolName.includes('Edit')) {
         return {
           hookSpecificOutput: {

@@ -63,9 +63,6 @@ export const SAFE_ALWAYS_ALLOW_TOOLS = new Set([
   'Sleep',            // Sleep/wait tool
 ]);
 
-// Legacy alias for backward compatibility
-export const AUTO_ALLOW_TOOLS = SAFE_ALWAYS_ALLOW_TOOLS;
-
 // EDIT tools: auto-allowed in acceptEdits mode
 export const EDIT_TOOLS = new Set([
   'Edit',           // Modify file contents

@@ -120,19 +120,16 @@ async function createRuntime(requestContext, callbacks) {
           runtime.permissionModeState.value = mode;
           return;
         }
-        let modeUpdated = false;
         if (typeof runtime.query?.setPermissionMode === 'function') {
           try {
             await runtime.query.setPermissionMode(mode);
-            modeUpdated = true;
           } catch (error) {
-            console.error('[LIFECYCLE] hook setPermissionMode failed:', error.message);
+            console.warn('[LIFECYCLE] hook setPermissionMode failed, updating local state only:', error.message);
           }
         }
-        if (modeUpdated || typeof runtime.query?.setPermissionMode !== 'function') {
-          runtime.currentPermissionMode = mode;
-          runtime.permissionModeState.value = mode;
-        }
+        // Always update local state to keep hook and runtime in sync
+        runtime.currentPermissionMode = mode;
+        runtime.permissionModeState.value = mode;
       })]
     }]
   };
